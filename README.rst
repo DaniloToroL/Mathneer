@@ -2,22 +2,22 @@
 mathneer -- Math API for engineering calculations
 *************************************************
 
-Quickstart
-##########
+Introduction
+************
 
-.. code:: python
+API for engineering calculations with a simple syntax. 
 
-    from math_parser import MathParser
-    mp = MathParser()
-    result = mp.eval('sin(90*pi/180)')
-    print(result)
-    
-    result = mp.eval('exp(2^4)')
-    print(result)
+Sintax
+******
 
-    # return 
-    # > 1.0
-    # > 8886110.520507872
+exponent   :: '^'
+multiplication  :: '*' | '/'
+add  :: '+' | '-'
+integer :: ['+' | '-'] '0'..'9'+
+atom    :: PI | E | real | fn '(' expr ')' | '(' expr ')'
+factor  :: atom [ expop factor ]*
+term    :: factor [ multop factor ]*
+expr    :: term [ addop term ]*
 
 To Do List
 ##########

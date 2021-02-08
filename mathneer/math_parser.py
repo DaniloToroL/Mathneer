@@ -18,7 +18,7 @@ class MathParser:
     def __init__(self):
         
         point = Literal(".")
-        e = CaselessLiteral("E")
+        e = Literal("E")
         pi = CaselessLiteral("PI")
         
         plus = Literal("+")
@@ -37,6 +37,7 @@ class MathParser:
         fnumber = Combine(Word("+-" + nums, nums) + 
                     Optional(point + Optional(Word(nums))) + 
                     Optional(e + Word("+-" + nums, nums)))
+        variable = Word(alphas)
         
         self.expresion_stack = []
 
@@ -44,7 +45,7 @@ class MathParser:
         ident = Word(alphas, alphas + nums + "_$")
         expresion = Forward()
         atom = ((Optional(sign_operator) +
-                 (ident + lpar + expresion + rpar | pi | e | fnumber).setParseAction(self.pushFirst))
+                 (ident + lpar + expresion + rpar | pi | e | fnumber | variable).setParseAction(self.pushFirst))
                 | Optional(sign_operator) + Group(lpar + expresion + rpar)
                 ).setParseAction(self.pushUMinus)
 
@@ -114,7 +115,7 @@ class MathOperators:
 
 if __name__ == "__main__":
     nsp = MathParser()
-    result = nsp.eval('sin(90*pi/180)')
+    result = nsp.eval('cos((0*PI)/180)*200')
     print(result)
     # 16.0
     
