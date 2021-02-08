@@ -2,6 +2,8 @@ from pyparsing import *
 import math
 import operator
 
+__source__ = "https://stackoverflow.com/questions/2371436/evaluating-a-mathematical-expression-in-a-string"
+__note__ = "Edit for Danilo Toro Labra"
 class MathParser:
     """
     exp_operator   :: '^'
