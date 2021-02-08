@@ -35,6 +35,11 @@ To Do List
   * Algebra
 
 2. API
+3. Engineering problems
+
+  * Thermodynamics
+  * Material strength
+  * Fluid Dynamics
 
 
 
