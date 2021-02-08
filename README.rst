@@ -32,6 +32,7 @@ To Do List
 
   * Geometry
   * Calculus 
+  * Algebra
 
 2. API
 
