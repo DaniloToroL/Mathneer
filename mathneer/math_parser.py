@@ -16,6 +16,9 @@ class Parser:
         expr    :: term [ addop term ]*
     """
     def __init__(self):
+
+        self.math_operators = MathOperators()
+
         self.integer = Word(nums)
         
         self.point = Literal(".")
@@ -90,23 +93,23 @@ class MathParser(Parser):
         operation = string.pop()
         if operation == "unary -":
             return str(-self.evaluateStack(string))
-        if operation in MathOperators.operators:
+        if operation in self.math_operators.operators:
             operation_2 = self.evaluateStack(string)
             operation_1 = self.evaluateStack(string)
-            if MathOperators.valid_units(operation_1, operation_2): 
-                return MathOperators.operators[operation](operation_1, operation_2)
+            if self.math_operators.valid_units(operation_1, operation_2): 
+                return self.math_operators.operators[operation](operation_1, operation_2)
             raise Exception("Units are not supported")
 
-        if operation in MathOperators.constants:
-            return MathOperators.constants[operation]
+        if operation in self.math_operators.constants:
+            return self.math_operators.constants[operation]
 
-        if operation in MathOperators.functions:
-            return MathOperators.functions[operation](self.evaluateStack(string))
+        if operation in self.math_operators.functions:
+            return self.math_operators.functions[operation](self.evaluateStack(string))
 
         if list(self.unit.scanString(operation)):
             position = list(self.unit.scanString(operation))[0][1]
             unit = list(self.unit.scanString(operation))[0][0][0]
-            multiple = MathOperators.convert_units(unit)
+            multiple = self.math_operators.convert_units(unit)
             return float(operation[:position])* multiple
         if operation[0].isalpha():
             return 0
@@ -147,8 +150,4 @@ if __name__ == "__main__":
     print(result)
     # 1000.0
 
-    
-    # result = AlgebraParser().eval('a+b=5')
-    # print(result)
-    # 8886110.520507872
 
