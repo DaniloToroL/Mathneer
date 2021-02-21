@@ -1,58 +1,73 @@
 from pyparsing import *
-import math
-import operator
+from operators import MathOperators
 
 __source__ = "https://stackoverflow.com/questions/2371436/evaluating-a-mathematical-expression-in-a-string"
 __note__ = "Edit for Danilo Toro Labra"
-class MathParser:
+
+class Parser:
     """
-    exp_operator   :: '^'
-    mult_operator  :: '*' | '/'
-    add_operator   :: '+' | '-'
-    integer :: ['+' | '-'] '0'..'9'+
-    atom    :: PI | E | real | fn '(' expr ')' | '(' expr ')'
-    factor  :: atom [ expop factor ]*
-    term    :: factor [ multop factor ]*
-    expr    :: term [ addop term ]*
+        exp_operator   :: '^'
+        mult_operator  :: '*' | '/'
+        add_operator   :: '+' | '-'
+        integer :: ['+' | '-'] '0'..'9'+
+        atom    :: PI | E | real | fn '(' expr ')' | '(' expr ')'
+        factor  :: atom [ expop factor ]*
+        term    :: factor [ multop factor ]*
+        expr    :: term [ addop term ]*
     """
     def __init__(self):
+        self.integer = Word(nums)
         
-        point = Literal(".")
-        e = Literal("E")
-        pi = CaselessLiteral("PI")
+        self.point = Literal(".")
+        self.e = CaselessLiteral("E")
+        self.pi = CaselessLiteral("PI")
         
-        plus = Literal("+")
-        minus = Literal("-")
-        mult = Literal("*")
-        div = Literal("/")
-        fact = Literal("!")
+        self.plus = Literal("+")
+        self.minus = Literal("-")
+        self.mult = Literal("*")
+        self.div = Literal("/")
+        self.fact = Literal("!")
+
+        self.sign_operator = oneOf(["+","-"])
+        self.add_operator = self.plus | self.minus
+        self.mult_operator = self.mult | self.div
+        self.exp_operator = Literal("^")
+        self.equal_operator = Literal("=")
+
+        self.unit = Combine(Literal("[") + OneOrMore(Word(alphanums)) + Literal("]"))
+
+        self.list = Combine(Literal("[") + ZeroOrMore(Word(alphanums) + Optional(Literal(","))) + Literal("]"))
+        self.set = Combine(Literal("{") + ZeroOrMore(Word(alphanums) + Optional(Literal(","))) + Literal("}"))
+
+
+class MathParser(Parser):
+    
+    def __init__(self):
+
+        super().__init__()
+
         lpar = Literal("(").suppress()
         rpar = Literal(")").suppress()
 
-        sign_operator = oneOf("+ -")
-        add_operator = plus | minus
-        mult_operator = mult | div
-        exp_operator = Literal("^")
-
         fnumber = Combine(Word("+-" + nums, nums) + 
-                    Optional(point + Optional(Word(nums))) + 
-                    Optional(e + Word("+-" + nums, nums)))
-        variable = Word(alphas)
+                    Optional(self.point + Optional(self.integer)) + 
+                    Optional(self.e + Word("+-" + nums, nums)) +   
+                    Optional(self.unit))
         
         self.expresion_stack = []
 
     
-        ident = Word(alphas, alphas + nums + "_$")
+        ident = Combine(Word(alphas, alphas + nums + "_$") + Optional(self.unit))
         expresion = Forward()
-        atom = ((Optional(sign_operator) +
-                 (ident + lpar + expresion + rpar | pi | e | fnumber | variable).setParseAction(self.pushFirst))
-                | Optional(sign_operator) + Group(lpar + expresion + rpar)
+        atom = ((Optional(self.sign_operator) +
+                 (ident + lpar + expresion + rpar | self.pi | self.e | fnumber).setParseAction(self.pushFirst))
+                | Optional(self.sign_operator) + Group(lpar + expresion + rpar)
                 ).setParseAction(self.pushUMinus)
 
         factor = Forward()
-        factor << atom + ZeroOrMore((exp_operator + factor).setParseAction(self.pushFirst))
-        term = factor + ZeroOrMore((mult_operator + factor).setParseAction(self.pushFirst))
-        expresion << term + ZeroOrMore((add_operator + term).setParseAction(self.pushFirst))
+        factor << atom + ZeroOrMore((self.exp_operator + factor).setParseAction(self.pushFirst))
+        term = factor + ZeroOrMore((self.mult_operator + factor).setParseAction(self.pushFirst))
+        expresion << term + ZeroOrMore((self.add_operator + term).setParseAction(self.pushFirst))
 
         self.bnf = expresion
 
@@ -67,59 +82,73 @@ class MathParser:
         self.expresion_stack = []
         results = self.bnf.parseString(num_string, parseAll)
         value = self.evaluateStack(self.expresion_stack)
+        
         return value
 
-    def evaluateStack(self, string):
+    def evaluateStack(self, string, algebra=False):
+        
         operation = string.pop()
         if operation == "unary -":
-            return -self.evaluateStack(string)
+            return str(-self.evaluateStack(string))
         if operation in MathOperators.operators:
             operation_2 = self.evaluateStack(string)
             operation_1 = self.evaluateStack(string)
-            return MathOperators.operators[operation](operation_1, operation_2)
+            if MathOperators.valid_units(operation_1, operation_2): 
+                return MathOperators.operators[operation](operation_1, operation_2)
+            raise Exception("Units are not supported")
+
         if operation in MathOperators.constants:
             return MathOperators.constants[operation]
+
         if operation in MathOperators.functions:
             return MathOperators.functions[operation](self.evaluateStack(string))
+
+        if list(self.unit.scanString(operation)):
+            position = list(self.unit.scanString(operation))[0][1]
+            unit = list(self.unit.scanString(operation))[0][0][0]
+            multiple = MathOperators.convert_units(unit)
+            return float(operation[:position])* multiple
         if operation[0].isalpha():
             return 0
         return float(operation)
 
 
-class MathOperators:
-    
-    EPSILON = 1e-12
-    constants = {
-        "PI": math.pi,
-        "E": math.e
-    }
+class AlgebraParser(MathParser):
+    def __init__(self):
+        super().__init__()
 
-    operators = {
-        "+": operator.add,
-        "-": operator.sub,
-        "*": operator.mul,
-        "/": operator.truediv,
-        "^": operator.pow
-    }
-    functions = {
-        "sin": math.sin,
-        "cos": math.cos,
-        "tan": math.tan,
-        "exp": math.exp,
-        "abs": abs,
-        "trunc": lambda a: int(a),
-        "round": round,
-        "sgn": lambda a: abs(a) > EPSILON and cmp(a, 0) or 0
-    }
+        ident = Word(alphas, alphanums)
+        real = Regex(r'\d+\.\d*')
+        arith_expresion = self.bnf
+        arith_operand = Forward()
+        
+        expresion = (arith_expresion | real | self.integer | ident) + self.exp_operator + self.integer
+        expresion.setParseAction( lambda tokens: f'pow({tokens[0]},{tokens[2]})')
+        arith_operand <<= self.exp_operator | real | self.integer | ident | arith_expresion
+
+        self.alf = arith_operand
+
+    def eval(self, num_string, parseAll=True):
+        return self.alf.parseString(num_string, parseAll)
+
         
 
 if __name__ == "__main__":
     nsp = MathParser()
-    result = nsp.eval('cos((0*PI)/180)*200')
+    result = nsp.eval('1[m] + 1000[mm]')
     print(result)
-    # 16.0
-    
-    
-    result = nsp.eval('exp(2^4)')
+    # 1001.0
+
+    result = nsp.eval('sin(90*PI/180)')
     print(result)
+    # 1.0
+
+    result = nsp.eval('10*5*20')
+    print(result)
+    # 1000.0
+
+    
+    # result = AlgebraParser().eval('a+b=5')
+    # print(result)
     # 8886110.520507872
+

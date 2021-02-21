@@ -1,2 +1,4 @@
 .env/
 .vscode/
+web/
+mathneer/__pycache__/
